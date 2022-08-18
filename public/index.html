@@ -1,0 +1,188 @@
+<!doctype html>
+<html>
+  <head>  
+    <script src="js/pixi.js"></script>
+  </head>
+  <body>
+    <script>
+        let app = new PIXI.Application({ width: 1024, height: 768 });
+        document.body.appendChild(app.view);
+
+        let backgroundSprite = loadSprite('bg.jpg');
+        let cremeSprite = loadSprite('creme.jpg');
+        let milkSprite = loadSprite('milk.jpg');
+        let cupSprite = loadSprite('cup.jpg');
+        let stream = loadSprite('stream.jpg');
+        let decafSwitch = loadSprite('switch.jpg');
+        let decafStream = loadSprite('decaf_stream.jpg');
+
+        stream.interactive = true;
+        stream.buttonMode = true;
+        stream.anchor.set(0.5);
+        stream.x = -1000;
+        stream.y = -1000;
+
+        decafStream.anchor.set(0.5);
+        decafStream.x = -1000;
+        decafStream.y = -1000;
+
+        decafSwitch.interactive = true;
+        decafSwitch.buttonMode = true;
+        decafSwitch.anchor.set(0.5);
+        decafSwitch.x = 362;
+        decafSwitch.y = 323;
+
+        milkSprite.interactive = true;
+        milkSprite.buttonMode = true;
+        milkSprite.anchor.set(0.5);
+        milkSprite.defaultPosition = {
+          x: 53,
+          y: 400,
+        }
+
+        cremeSprite.interactive = true;
+        cremeSprite.buttonMode = true;
+        cremeSprite.anchor.set(0.5);
+        cremeSprite.defaultPosition = {
+          x: 127,
+          y: 400,
+        }
+
+        milkSprite
+          .on('pointerdown', activateBottle)
+          .on('pointermove', bottleMouse)
+          .on('pointerup', deactivateStream);
+        cremeSprite
+          .on('pointerdown', activateBottle)
+          .on('pointermove', bottleMouse)
+          .on('pointerup', deactivateStream)
+          .on('pointerupoutside', deactivateStream);
+        decafSwitch
+          .on('pointerdown', activateDecaf)
+          .on('pointerup', deactivateDecaf)
+          .on('pointerupoutside', deactivateDecaf);
+        stream
+          .on('pointermove', streamMouse);
+          
+
+        // Add a variable to count up the seconds our demo has been running
+        let elapsed = 0.0;
+        let cupSpeed = 0.0;
+        // Tell our application's ticker to run a new callback every frame, passing
+        // in the amount of time that has passed since the last tick
+        milkSprite.x = milkSprite.defaultPosition.x;
+        milkSprite.y = milkSprite.defaultPosition.y;
+        cremeSprite.x = cremeSprite.defaultPosition.x;
+        cremeSprite.y = cremeSprite.defaultPosition.y;
+
+        cupSprite.x = -100;
+        cupSprite.y = 600;
+
+        app.ticker.add((delta) => {
+            // Add the time to our total elapsed time
+            elapsed += delta;
+            cupSpeed += delta;
+
+            cupSpeed += elapsed / 10000 ;
+
+            cupSprite.x = -100 + cupSpeed;
+
+            if(cupSprite.x >= 1024){
+              cupSprite.x = -100;
+              cupSpeed = 0;
+            }
+            if(elapsed >= 1000000)
+              elapsed = 0;
+        });
+
+        function deactivateStream(){
+          console.log('deactivating stream');
+          stream.active = false;
+          stream.x = -1000;
+          stream.y = -1000;
+        }
+
+        function activateDecaf(){
+          if(!this.active){
+            this.active = true;
+            this.scale.y = -1;
+            decafStream.x = 305;
+            decafStream.y = 600;
+          }
+        }
+
+        function deactivateDecaf(){
+          this.active = false;
+          this.scale.y = 1;
+          decafStream.x = -1000;
+          decafStream.y = -1000;
+        }
+
+        function activateBottle() {
+          if(!this.pickedUp){
+            deactiveBottle(milkSprite);
+            deactiveBottle(cremeSprite);
+            this.alpha = .5;
+            this.pickedUp = true;
+            this.scale.y = -1;
+          }
+          else{
+            if(isPuttingBottleBack(this)){
+              //reset 
+              this.alpha = 1;
+              this.pickedUp = false;
+              this.scale.y = 1;
+              this.x = this.defaultPosition.x;
+              this.y = this.defaultPosition.y;
+            }
+            else{
+              stream.active = true;
+              stream.x = this.x;
+              stream.y = this.y + 100;
+            }
+          }
+        }
+
+        function deactiveBottle(bottle){
+          bottle.alpha = 1;
+          bottle.pickedUp = false;
+          bottle.scale.y = 1;
+          bottle.x = bottle.defaultPosition.x;
+          bottle.y = bottle.defaultPosition.y;
+        }
+
+        function bottleMouse(e){
+          if(this.pickedUp){
+            const newPosition = e.data.global;
+            this.x = newPosition.x;
+            this.y = newPosition.y;
+          }
+        }
+
+        function streamMouse(e) {
+          
+          if(this.active){
+            const newPosition = e.data.global;
+            this.x = newPosition.x;
+            this.y = newPosition.y + 100;
+          }
+        }
+
+      function isPuttingBottleBack(object) {
+        const bounds1 = object.getBounds();
+        const defaultPosition = object.defaultPosition;
+
+        return bounds1.x < defaultPosition.x + (bounds1.width/2)
+            && bounds1.x + (bounds1.width/2) > defaultPosition.x
+            && bounds1.y < defaultPosition.y + (bounds1.height/2)
+            && bounds1.y + (bounds1.height/2) > defaultPosition.y;
+      }
+
+        function loadSprite(filename){
+          let spriteObj = PIXI.Sprite.from('assets/' + filename);
+          app.stage.addChild(spriteObj);
+          return spriteObj;
+        }
+    </script>
+  </body>
+</html>
