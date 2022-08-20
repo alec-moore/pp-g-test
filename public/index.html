@@ -14,7 +14,9 @@
         let cupSprite = loadSprite('cup.jpg');
         let stream = loadSprite('stream.jpg');
         let decafSwitch = loadSprite('switch.jpg');
+        let waterSwitch = loadSprite('switch.jpg');
         let decafStream = loadSprite('decaf_stream.jpg');
+        let waterStream = loadSprite('water_stream.jpg');
 
         stream.interactive = true;
         stream.buttonMode = true;
@@ -31,6 +33,16 @@
         decafSwitch.anchor.set(0.5);
         decafSwitch.x = 362;
         decafSwitch.y = 323;
+
+        waterStream.anchor.set(0.5);
+        waterStream.x = -1000;
+        waterStream.y = -1000;
+
+        waterSwitch.interactive = true;
+        waterSwitch.buttonMode = true;
+        waterSwitch.anchor.set(0.5);
+        waterSwitch.x = 508;
+        waterSwitch.y = 323;
 
         milkSprite.interactive = true;
         milkSprite.buttonMode = true;
@@ -61,6 +73,10 @@
           .on('pointerdown', activateDecaf)
           .on('pointerup', deactivateDecaf)
           .on('pointerupoutside', deactivateDecaf);
+        waterSwitch
+          .on('pointerdown', activateWater)
+          .on('pointerup', deactivateWater)
+          .on('pointerupoutside', deactivateWater);
         stream
           .on('pointermove', streamMouse);
           
@@ -116,6 +132,22 @@
           this.scale.y = 1;
           decafStream.x = -1000;
           decafStream.y = -1000;
+        }
+
+        function activateWater(){
+          if(!this.active){
+            this.active = true;
+            this.scale.y = -1;
+            waterStream.x = 600;
+            waterStream.y = 600;
+          }
+        }
+
+        function deactivateWater(){
+          this.active = false;
+          this.scale.y = 1;
+          waterStream.x = -1000;
+          waterStream.y = -1000;
         }
 
         function activateBottle() {
