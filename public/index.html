@@ -5,94 +5,212 @@
   </head>
   <body>
     <script>
+        class Bottle {
+          constructor(spritePath, streamSpritePath, defaultPosition, deactivateBottles){
+            this.sprite = loadSprite(spritePath);
+            this.streamSprite = loadSprite(streamSpritePath);
+
+            this.pickedUp = false;
+            this.defaultPosition = defaultPosition;
+            this.deactivateAllBottles = deactivateBottles;
+            this.initSprites();
+          }
+
+          initSprites(){
+            this.sprite.interactive = true;
+            this.sprite.buttonMode = true;
+            this.sprite.anchor.set(0.5);
+            this.sprite.x = this.defaultPosition.x;
+            this.sprite.y = this.defaultPosition.y;
+            this.sprite
+              .on('pointerdown', this.activateBottle)
+              .on('pointermove', this.bottleMove)
+              .on('pointerup', this.deactivateStream)
+              .on('pointerupoutside', this.deactivateStream);
+
+            this.streamSprite.interactive = true;
+            this.streamSprite.buttonMode = true;
+            this.streamSprite.anchor.set(0.5);
+            this.streamSprite.x = -1000;
+            this.streamSprite.y = -1000;
+            this.streamSprite
+              .on('pointermove', this.streamMouse);
+          }
+
+          deactivateStream = () => {
+            console.log('deactivating stream');
+            this.streamSprite.active = false;
+            this.streamSprite.x = -1000;
+            this.streamSprite.y = -1000;
+          }
+
+          bottleMove = (e) => {
+            if(this.pickedUp){
+              const newPosition = e.data.global;
+              this.sprite.x = newPosition.x;
+              this.sprite.y = newPosition.y;
+            }
+          }
+
+          activateBottle = () => {
+            console.log('activation', this.pickedUp);
+            if(!this.pickedUp){
+              this.deactivateAllBottles();
+              this.sprite.alpha = .5;
+              this.pickedUp = true;
+              this.sprite.scale.y = -1;
+            }
+            else{
+              if(this.isPuttingBottleBack()){
+                //reset 
+                this.sprite.alpha = 1;
+                this.pickedUp = false;
+                this.sprite.scale.y = 1;
+                this.sprite.x = this.defaultPosition.x;
+                this.sprite.y = this.defaultPosition.y;
+              }
+              else{
+                this.streamSprite.active = true;
+                this.streamSprite.x = this.sprite.x;
+                this.streamSprite.y = this.sprite.y + 100;
+              }
+            }
+          }
+
+          isPuttingBottleBack() {
+            const bounds1 = this.sprite.getBounds();
+            const defaultPosition = this.defaultPosition;
+
+            return bounds1.x < defaultPosition.x + (bounds1.width/2)
+                && bounds1.x + (bounds1.width/2) > defaultPosition.x
+                && bounds1.y < defaultPosition.y + (bounds1.height/2)
+                && bounds1.y + (bounds1.height/2) > defaultPosition.y;
+          }
+
+          streamMouse = (e) => {
+            if(this.streamSprite.active){
+              const newPosition = e.data.global;
+              this.streamSprite.x = newPosition.x;
+              this.streamSprite.y = newPosition.y + 100;
+            }
+          }
+
+          deactiveBottle(){
+            this.sprite.alpha = 1;
+            this.pickedUp = false;
+            this.sprite.scale.y = 1;
+            this.sprite.x = this.defaultPosition.x;
+            this.sprite.y = this.defaultPosition.y;
+            this.streamSprite.active = false;
+          }
+        }
+
+        class Switch {
+          constructor(sprite, streamSprite, switchPosition, streamPosition){
+            this.active = false;
+            this.sprite = loadSprite(sprite);
+            this.stream = loadSprite(streamSprite);
+            this.position = switchPosition;
+            this.streamPosition = streamPosition;
+
+            this.initSprites();
+          }
+
+          initSprites(){
+            this.stream.anchor.set(0.5);
+            this.stream.x = -1000;
+            this.stream.y = -1000;
+
+            this.sprite.interactive = true;
+            this.sprite.buttonMode = true;
+            this.sprite.anchor.set(0.5);
+            this.sprite.x = this.position.x;
+            this.sprite.y = this.position.y;
+
+            this.sprite
+              .on('pointerdown', this.activate)
+              .on('pointerup', this.deactivate)
+              .on('pointerupoutside', this.deactivate);
+          }
+
+          activate = () => {
+            if(this.active) return;
+
+            this.active = true;
+            this.sprite.scale.y = -1;
+            this.stream.x = this.streamPosition.x;
+            this.stream.y = this.streamPosition.y;
+          }
+
+          deactivate = () => {
+            this.active = false;
+            this.sprite.scale.y = 1;
+            this.stream.x = -1000;
+            this.stream.y = -1000;
+          }
+
+        }
+
+        class RandomCupGenerator{
+          constructor(){
+            this.instructions = [];
+            this.randomCup = undefined; // Will hold graphics later
+            this.generateRandomCup();
+          }
+
+          generateRandomCup(){
+            this.instructions = [];
+            for(let i = 0; i < 3; i ++){
+              const randomNum = Math.floor(Math.random() * 5);
+              const randomMap = [
+                'chocolate_text.jpg',
+                'decaf_text.jpg',
+                'water_text.jpg',
+                'creme_text.jpg',
+                'milk_text.jpg'
+              ]
+              this.instructions.push(randomMap[randomNum]);
+            }
+          };
+        }
+
+        class InstructionsDrawer{
+          constructor(instructions){
+            if(!instructions || instructions.length == 0) return;
+            this.update(instructions);
+          }
+
+          update(instructions){
+            this.textLineOne = loadSprite(instructions[0]);
+            this.textLineOne.x = 352;
+            this.textLineOne.y = 1;
+            this.textLineTwo = loadSprite(instructions[1]);
+            this.textLineTwo.x = 352;
+            this.textLineTwo.y = 27;
+            this.textLineThree = loadSprite(instructions[2]);
+            this.textLineThree.x = 352;
+            this.textLineThree.y = 53;
+          }
+        }
+
         let app = new PIXI.Application({ width: 1024, height: 768 });
         document.body.appendChild(app.view);
 
         let backgroundSprite = loadSprite('bg.jpg');
-        let cremeSprite = loadSprite('creme.jpg');
-        let milkSprite = loadSprite('milk.jpg');
         let cupSprite = loadSprite('cup.jpg');
-        let stream = loadSprite('stream.jpg');
-        let decafSwitch = loadSprite('switch.jpg');
-        let waterSwitch = loadSprite('switch.jpg');
-        let decafStream = loadSprite('decaf_stream.jpg');
-        let waterStream = loadSprite('water_stream.jpg');
-
-        stream.interactive = true;
-        stream.buttonMode = true;
-        stream.anchor.set(0.5);
-        stream.x = -1000;
-        stream.y = -1000;
-
-        decafStream.anchor.set(0.5);
-        decafStream.x = -1000;
-        decafStream.y = -1000;
-
-        decafSwitch.interactive = true;
-        decafSwitch.buttonMode = true;
-        decafSwitch.anchor.set(0.5);
-        decafSwitch.x = 362;
-        decafSwitch.y = 323;
-
-        waterStream.anchor.set(0.5);
-        waterStream.x = -1000;
-        waterStream.y = -1000;
-
-        waterSwitch.interactive = true;
-        waterSwitch.buttonMode = true;
-        waterSwitch.anchor.set(0.5);
-        waterSwitch.x = 508;
-        waterSwitch.y = 323;
-
-        milkSprite.interactive = true;
-        milkSprite.buttonMode = true;
-        milkSprite.anchor.set(0.5);
-        milkSprite.defaultPosition = {
-          x: 53,
-          y: 400,
-        }
-
-        cremeSprite.interactive = true;
-        cremeSprite.buttonMode = true;
-        cremeSprite.anchor.set(0.5);
-        cremeSprite.defaultPosition = {
-          x: 127,
-          y: 400,
-        }
-
-        milkSprite
-          .on('pointerdown', activateBottle)
-          .on('pointermove', bottleMouse)
-          .on('pointerup', deactivateStream);
-        cremeSprite
-          .on('pointerdown', activateBottle)
-          .on('pointermove', bottleMouse)
-          .on('pointerup', deactivateStream)
-          .on('pointerupoutside', deactivateStream);
-        decafSwitch
-          .on('pointerdown', activateDecaf)
-          .on('pointerup', deactivateDecaf)
-          .on('pointerupoutside', deactivateDecaf);
-        waterSwitch
-          .on('pointerdown', activateWater)
-          .on('pointerup', deactivateWater)
-          .on('pointerupoutside', deactivateWater);
-        stream
-          .on('pointermove', streamMouse);
-          
-
-        // Add a variable to count up the seconds our demo has been running
-        let elapsed = 0.0;
-        let cupSpeed = 0.0;
-        // Tell our application's ticker to run a new callback every frame, passing
-        // in the amount of time that has passed since the last tick
-        milkSprite.x = milkSprite.defaultPosition.x;
-        milkSprite.y = milkSprite.defaultPosition.y;
-        cremeSprite.x = cremeSprite.defaultPosition.x;
-        cremeSprite.y = cremeSprite.defaultPosition.y;
+        let creme = new Bottle('creme.jpg', 'stream.jpg', { x: 127, y: 400 }, deactivateBottles);
+        let milk = new Bottle('milk.jpg', 'stream.jpg',  { x: 53, y: 400 }, deactivateBottles);
+        let decafSwitch = new Switch('switch.jpg', 'decaf_stream.jpg', { x: 362, y: 323 }, { x: 305, y: 600 });
+        let waterSwitch = new Switch('switch.jpg', 'water_stream.jpg', { x: 508, y: 323 }, { x: 600, y: 600 });
+        let chocolateSwitch = new Switch('switch.jpg', 'chocolate_stream.jpg', { x: 960, y: 323 }, { x: 890, y: 600 });
+        let randomCupGenerator = new RandomCupGenerator();
+        let instructions = new InstructionsDrawer(randomCupGenerator.instructions);
 
         cupSprite.x = -100;
         cupSprite.y = 600;
+
+        let elapsed = 0.0;
+        let cupSpeed = 0.0;
 
         app.ticker.add((delta) => {
             // Add the time to our total elapsed time
@@ -104,111 +222,20 @@
             cupSprite.x = -100 + cupSpeed;
 
             if(cupSprite.x >= 1024){
+              // the cup is off screen
               cupSprite.x = -100;
               cupSpeed = 0;
+              randomCupGenerator.generateRandomCup();
+              instructions.update(randomCupGenerator.instructions);
             }
             if(elapsed >= 1000000)
               elapsed = 0;
         });
 
-        function deactivateStream(){
-          console.log('deactivating stream');
-          stream.active = false;
-          stream.x = -1000;
-          stream.y = -1000;
+        function deactivateBottles(){
+          milk.deactiveBottle();
+          creme.deactiveBottle();
         }
-
-        function activateDecaf(){
-          if(!this.active){
-            this.active = true;
-            this.scale.y = -1;
-            decafStream.x = 305;
-            decafStream.y = 600;
-          }
-        }
-
-        function deactivateDecaf(){
-          this.active = false;
-          this.scale.y = 1;
-          decafStream.x = -1000;
-          decafStream.y = -1000;
-        }
-
-        function activateWater(){
-          if(!this.active){
-            this.active = true;
-            this.scale.y = -1;
-            waterStream.x = 600;
-            waterStream.y = 600;
-          }
-        }
-
-        function deactivateWater(){
-          this.active = false;
-          this.scale.y = 1;
-          waterStream.x = -1000;
-          waterStream.y = -1000;
-        }
-
-        function activateBottle() {
-          if(!this.pickedUp){
-            deactiveBottle(milkSprite);
-            deactiveBottle(cremeSprite);
-            this.alpha = .5;
-            this.pickedUp = true;
-            this.scale.y = -1;
-          }
-          else{
-            if(isPuttingBottleBack(this)){
-              //reset 
-              this.alpha = 1;
-              this.pickedUp = false;
-              this.scale.y = 1;
-              this.x = this.defaultPosition.x;
-              this.y = this.defaultPosition.y;
-            }
-            else{
-              stream.active = true;
-              stream.x = this.x;
-              stream.y = this.y + 100;
-            }
-          }
-        }
-
-        function deactiveBottle(bottle){
-          bottle.alpha = 1;
-          bottle.pickedUp = false;
-          bottle.scale.y = 1;
-          bottle.x = bottle.defaultPosition.x;
-          bottle.y = bottle.defaultPosition.y;
-        }
-
-        function bottleMouse(e){
-          if(this.pickedUp){
-            const newPosition = e.data.global;
-            this.x = newPosition.x;
-            this.y = newPosition.y;
-          }
-        }
-
-        function streamMouse(e) {
-          
-          if(this.active){
-            const newPosition = e.data.global;
-            this.x = newPosition.x;
-            this.y = newPosition.y + 100;
-          }
-        }
-
-      function isPuttingBottleBack(object) {
-        const bounds1 = object.getBounds();
-        const defaultPosition = object.defaultPosition;
-
-        return bounds1.x < defaultPosition.x + (bounds1.width/2)
-            && bounds1.x + (bounds1.width/2) > defaultPosition.x
-            && bounds1.y < defaultPosition.y + (bounds1.height/2)
-            && bounds1.y + (bounds1.height/2) > defaultPosition.y;
-      }
 
         function loadSprite(filename){
           let spriteObj = PIXI.Sprite.from('assets/' + filename);
