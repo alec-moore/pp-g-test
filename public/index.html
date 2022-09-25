@@ -38,7 +38,6 @@
           }
 
           deactivateStream = () => {
-            console.log('deactivating stream');
             this.streamSprite.active = false;
             this.streamSprite.x = -1000;
             this.streamSprite.y = -1000;
@@ -53,7 +52,6 @@
           }
 
           activateBottle = () => {
-            console.log('activation', this.pickedUp);
             if(!this.pickedUp){
               this.deactivateAllBottles();
               this.sprite.alpha = .5;
@@ -77,7 +75,7 @@
             }
           }
 
-          isPuttingBottleBack() {
+          isPuttingBottleBack() { // TODO fix this boundary check
             const bounds1 = this.sprite.getBounds();
             const defaultPosition = this.defaultPosition;
 
@@ -151,15 +149,17 @@
 
         }
 
-        class RandomCupGenerator{
+        class RandomCupGenerator {
           constructor(){
             this.instructions = [];
-            this.randomCup = undefined; // Will hold graphics later
+            this.evaluationColors = [];
+            this.randomCup = undefined; // Could hold graphics for the top bar later
             this.generateRandomCup();
           }
 
           generateRandomCup(){
             this.instructions = [];
+            this.evaluationColors = [];
             for(let i = 0; i < 3; i ++){
               const randomNum = Math.floor(Math.random() * 5);
               const randomMap = [
@@ -168,13 +168,23 @@
                 'water_text.jpg',
                 'creme_text.jpg',
                 'milk_text.jpg'
-              ]
+              ];
+
+              const randomEvaluationMap = [
+                CHOCOLATE_BROWN,
+                COFFEE_BROWN,
+                WATER_BLUE,
+                CREME_WHITE,
+                MILK_WHITE
+              ];
+
               this.instructions.push(randomMap[randomNum]);
+              this.evaluationColors.push(randomEvaluationMap[randomNum]);
             }
           };
         }
 
-        class InstructionsDrawer{
+        class InstructionsDrawer {
           constructor(instructions){
             if(!instructions || instructions.length == 0) return;
             this.update(instructions);
@@ -193,11 +203,77 @@
           }
         }
 
-        let app = new PIXI.Application({ width: 1024, height: 768 });
+        class Cup {
+          constructor(){
+            this.fillCounter = 0;
+            this.speed = 0.0;
+            this.sprite = loadSprite('cup.jpg');
+            this.fillBottom = loadSprite('cup_bottom_filled.png');
+            this.fillMid = loadSprite('cup_mid_filled.png');
+            this.fillTop = loadSprite('cup_top_filled.png');
+            this.contents = [];
+
+            this.sprite.x = -100;
+            this.sprite.y = 600;
+            this.fillBottom.y = this.sprite.y;
+            this.fillMid.y = this.sprite.y;
+            this.fillTop.y = this.sprite.y;
+
+            this._fillCupMap = {
+              0: (color) => this.fillBottom.tint = color,
+              1: (color) => this.fillMid.tint = color,
+              2: (color) => this.fillTop.tint = color 
+            }
+          }
+
+          updateX(xVal){
+            this.sprite.x = xVal;
+            this.fillBottom.x = xVal;
+            this.fillMid.x = xVal;
+            this.fillTop.x = xVal;
+          }
+
+          addSpeed(addition){
+            this.speed += addition;
+          }
+
+          fill(color, successFn){
+            if(cup.contents.length >= 3) return;
+
+            this.fillCounter += 5;
+            if(this.fillCounter >= 100){
+              const position = this.contents.length;
+              this._fillCupMap[position](color)
+              this.contents.push(color);
+              this.fillCounter = 0;
+              if(successFn) successFn();
+            }
+          }
+
+          reset(){
+            this.sprite.x = -100;
+            this.speed = 0.0;
+            this.contents = [];
+            this.fillBottom.tint = PURE_WHITE;
+            this.fillMid.tint = PURE_WHITE;
+            this.fillTop.tint = PURE_WHITE;
+          }
+        }
+
+        const MILK_WHITE = 0XFCF8E2;
+        const CREME_WHITE = 0XF9EEB8;
+        const COFFEE_BROWN = 0X553434;
+        const WATER_BLUE = 0X7DD6E7;
+        const CHOCOLATE_BROWN = 0Xd2691e;
+        const PURE_WHITE = 0XFFFFFF;
+
+        let score = 0;
+
+        let app = new PIXI.Application({ width: 1024, height: 768, transparent: true });
         document.body.appendChild(app.view);
 
         let backgroundSprite = loadSprite('bg.jpg');
-        let cupSprite = loadSprite('cup.jpg');
+        let cup = new Cup();
         let creme = new Bottle('creme.jpg', 'stream.jpg', { x: 127, y: 400 }, deactivateBottles);
         let milk = new Bottle('milk.jpg', 'stream.jpg',  { x: 53, y: 400 }, deactivateBottles);
         let decafSwitch = new Switch('switch.jpg', 'decaf_stream.jpg', { x: 362, y: 323 }, { x: 305, y: 600 });
@@ -206,31 +282,62 @@
         let randomCupGenerator = new RandomCupGenerator();
         let instructions = new InstructionsDrawer(randomCupGenerator.instructions);
 
-        cupSprite.x = -100;
-        cupSprite.y = 600;
-
         let elapsed = 0.0;
-        let cupSpeed = 0.0;
 
         app.ticker.add((delta) => {
             // Add the time to our total elapsed time
             elapsed += delta;
-            cupSpeed += delta;
 
-            cupSpeed += elapsed / 10000 ;
+            cup.addSpeed(delta + (elapsed / 5000)); // SPEED UP FASTER DEPENDING HOW LONG THE APP IS RUNNING
 
-            cupSprite.x = -100 + cupSpeed;
+            // TODO: If it's filled let's move it faster.
+            cup.updateX(-100 + cup.speed);
 
-            if(cupSprite.x >= 1024){
-              // the cup is off screen
-              cupSprite.x = -100;
-              cupSpeed = 0;
-              randomCupGenerator.generateRandomCup();
-              instructions.update(randomCupGenerator.instructions);
-            }
+            if(cup.sprite.x >= 1024) // the cup is off screen
+              handleResetCup(); 
             if(elapsed >= 1000000)
               elapsed = 0;
+
+            if(testForCollision(cup.sprite, decafSwitch.stream))
+              cup.fill(COFFEE_BROWN, decafSwitch.deactivate);
+            else if(testForCollision(cup.sprite, waterSwitch.stream))
+              cup.fill(WATER_BLUE, waterSwitch.deactivate)
+            else if(testForCollision(cup.sprite, chocolateSwitch.stream))
+              cup.fill(CHOCOLATE_BROWN, chocolateSwitch.deactivate);
+            else if(testForCollision(cup.sprite, milk.streamSprite))
+              cup.fill(MILK_WHITE, milk.deactivateStream);
+            else if(testForCollision(cup.sprite, creme.streamSprite))
+              cup.fill(CREME_WHITE, creme.deactivateStream);
+
+            if(elapsed >= 6000) console.log('GAME OVER, score:', score); //~1m:45s?
         });
+
+        function handleResetCup(){
+          evaluateCup();
+          randomCupGenerator.generateRandomCup();
+          instructions.update(randomCupGenerator.instructions);
+          cup.reset();
+        }
+
+        function evaluateCup(){
+          const evalColors = [...randomCupGenerator.evaluationColors];
+          for(let i = 0; i < 3; i++){
+            for(let j = 0; j < 3; j++){
+              if(cup.contents[i] === evalColors[j]){
+                evalColors.splice(j, 1);
+                break;
+              };
+            }
+            
+            if(i == 2 && evalColors.length == 0) updateScore(50);
+          }
+        }
+
+        function updateScore(amount){
+          score += amount;
+          console.log('NEW SCORE:', score);
+          //TODO UPDATE DRAW SCORE
+        }
 
         function deactivateBottles(){
           milk.deactiveBottle();
@@ -241,6 +348,16 @@
           let spriteObj = PIXI.Sprite.from('assets/' + filename);
           app.stage.addChild(spriteObj);
           return spriteObj;
+        }
+
+        function testForCollision(object1, object2) {
+          const bounds1 = object1.getBounds();
+          const bounds2 = object2.getBounds();
+
+          return bounds1.x < bounds2.x + bounds2.width
+              && bounds1.x + bounds1.width > bounds2.x
+              && bounds1.y < bounds2.y + bounds2.height
+              && bounds1.y + bounds1.height > bounds2.y;
         }
     </script>
   </body>
